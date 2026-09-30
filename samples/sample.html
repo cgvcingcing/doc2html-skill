@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>示例：药品数据治理方案（演示文档）</title>
+<style>
+:root{--ink:#21252d;--muted:#6d7380;--accent:__ACCENT__;--accent2:#8b5cf6;--soft:#eef0fe;--line:#e7e9f2;--bg:#f6f7fa;--code:#4a44c6;--f1:#4f46e5;--f2:#0f766e;--f3:#c2410c;--f4:#be185d;--f5:#0369a1;--f6:#7c3aed;--f7:#4d7c0f;--f8:#b45309}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.85 -apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+::selection{background:#dfe3ff}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:272px;background:#fcfcfe;border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:10;transition:transform .28s ease}
+.side-head{padding:22px 22px 16px;border-bottom:1px solid var(--line)}
+.side-head .row{display:flex;align-items:center;gap:10px}
+.logo{flex:0 0 auto;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
+.side-head b{font-size:14.5px;line-height:1.4;display:block}
+.side-head small{color:var(--muted);font-size:12px;display:block;margin-top:2px}
+#toc{flex:1;overflow:auto;padding:14px 12px 24px}
+#toc a{display:block;text-decoration:none;border:0;color:#4b5058;font-size:13px;padding:5px 12px;border-radius:8px;line-height:1.5;margin:1px 0}
+#toc a.l2{display:flex;align-items:center}
+#toc a.l2 .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#toc a.l3{display:flex;align-items:center;padding-left:15px}
+#toc a.l3 .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#toc a.l3::before{content:'';flex:0 0 auto;width:5px;height:5px;border-radius:50%;background:var(--accent);margin-right:7px}
+#toc a.l2.fl-1{color:var(--f1)}#toc a.l2.fl-2{color:var(--f2)}#toc a.l2.fl-3{color:var(--f3)}#toc a.l2.fl-4{color:var(--f4)}#toc a.l2.fl-5{color:var(--f5)}#toc a.l2.fl-6{color:var(--f6)}#toc a.l2.fl-7{color:var(--f7)}#toc a.l2.fl-8{color:var(--f8)}
+#toc a.l3.fl-1::before{background:var(--f1)}#toc a.l3.fl-2::before{background:var(--f2)}#toc a.l3.fl-3::before{background:var(--f3)}#toc a.l3.fl-4::before{background:var(--f4)}#toc a.l3.fl-5::before{background:var(--f5)}#toc a.l3.fl-6::before{background:var(--f6)}#toc a.l3.fl-7::before{background:var(--f7)}#toc a.l3.fl-8::before{background:var(--f8)}
+.tgroup .car{flex:0 0 auto;width:20px;height:20px;margin:0 -7px 0 7px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:9px;color:#9aa0b5;cursor:pointer;transition:transform .18s,background .18s;user-select:none}
+.tgroup .car:hover{background:#e8eaf4;color:var(--ink)}
+.tgroup.closed>.tsub{display:none}
+.tgroup.closed .car{transform:rotate(-90deg)}
+#toc a:hover{background:#f1f2f9;color:var(--ink)}
+#toc a.active{background:var(--soft);color:var(--accent);font-weight:600}
+.side-foot{padding:10px 12px;border-top:1px solid var(--line);display:flex;gap:8px}
+.side-foot button{flex:1;border:1px solid var(--line);background:#fff;color:#5a6070;font-size:12px;line-height:1;padding:7px 0 8px;border-radius:8px;cursor:pointer;transition:color .15s,border-color .15s,background .15s}
+.side-foot button:hover{color:var(--accent);border-color:#c9cffb;background:#f6f7ff}
+.main{margin-left:272px;transition:margin-left .28s ease}
+#side-toggle{position:fixed;top:26px;left:272px;margin-left:-14px;z-index:30;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#7c8291;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(30,35,90,.15);transition:left .28s ease}
+#side-toggle:hover{color:var(--accent);border-color:#c9cffb}
+body.side-hidden .sidebar{transform:translateX(-102%)}
+body.side-hidden .main{margin-left:0}
+body.side-hidden #side-toggle{left:18px;margin-left:0}
+.wrap{max-width:940px;margin:0 auto;padding:52px 60px 90px}
+h1{font-size:29px;line-height:1.4;margin:6px 0 18px;font-weight:700;letter-spacing:.2px}
+h1::after{content:'';display:block;width:64px;height:4px;border-radius:2px;margin-top:16px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 8px}
+.chip{background:#fff;border:1px solid var(--line);color:#4b5058;font-size:12.5px;padding:4px 13px;border-radius:999px}
+.chip.hot{background:var(--soft);border-color:#dcdffb;color:var(--accent);font-weight:700}
+h2{font-size:21.5px;margin:58px 0 18px;padding-bottom:12px;border-bottom:1px solid var(--line);position:relative;scroll-margin-top:24px;line-height:1.5}
+h2::before{content:'';position:absolute;left:0;bottom:-2px;width:30px;height:3px;border-radius:2px;background:currentColor}
+h3{font-size:17.5px;margin:38px 0 14px;scroll-margin-top:24px;display:flex;align-items:baseline;gap:9px}
+h3::before{content:'';flex:0 0 auto;width:7px;height:7px;border-radius:2px;background:currentColor;transform:rotate(45deg) translateY(-1px)}
+h2.fl-1{color:var(--f1)}h2.fl-2{color:var(--f2)}h2.fl-3{color:var(--f3)}h2.fl-4{color:var(--f4)}h2.fl-5{color:var(--f5)}h2.fl-6{color:var(--f6)}h2.fl-7{color:var(--f7)}h2.fl-8{color:var(--f8)}
+h3.fl-1{color:var(--f1)}h3.fl-2{color:var(--f2)}h3.fl-3{color:var(--f3)}h3.fl-4{color:var(--f4)}h3.fl-5{color:var(--f5)}h3.fl-6{color:var(--f6)}h3.fl-7{color:var(--f7)}h3.fl-8{color:var(--f8)}
+.fl-badge{display:inline-block;min-width:20px;height:20px;margin-right:10px;padding:0 6px;border:1.5px solid currentColor;border-radius:6px;font-size:12px;font-weight:700;line-height:17px;text-align:center;vertical-align:3px;letter-spacing:.5px;opacity:.9}
+p{margin:12px 0}
+li{margin:6px 0}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid #d8dcfa}
+a:hover{border-bottom-color:var(--accent)}
+strong{color:#14171d}
+hr{border:0;border-top:1px solid var(--line);margin:44px 0}
+blockquote{margin:18px 0;padding:12px 20px;background:#f8f9ff;border-left:3px solid #bcc3f8;border-radius:0 10px 10px 0;color:#3a3f4a;font-size:14px}
+blockquote p{margin:9px 0}
+blockquote blockquote{background:transparent;border-left-color:#dfe2fa;margin:10px 0}
+details.docmeta{margin:24px 0;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+details.docmeta summary{cursor:pointer;list-style:none;padding:14px 20px;font-weight:600;font-size:14.5px;color:var(--accent);background:#fbfbff;display:flex;align-items:center;gap:8px}
+details.docmeta summary::-webkit-details-marker{display:none}
+details.docmeta summary::before{content:'▸';transition:.2s;display:inline-block}
+details.docmeta[open] summary::before{transform:rotate(90deg)}
+details.docmeta summary span{margin-left:auto;font-size:12px;color:#9aa0b5;font-weight:400}
+details.docmeta blockquote{margin:14px 16px;background:transparent;border-left:2px solid #e2e5f9;padding:4px 16px}
+code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.86em;background:#f2f3f9;color:var(--code);padding:2px 6px;border-radius:5px;overflow-wrap:anywhere}
+pre{background:#fafbfe;border:1px solid var(--line);border-radius:12px;padding:15px 18px;overflow:auto;line-height:1.7}
+pre code{background:none;padding:0;color:#333a45;font-size:12.5px}
+pre code .tok-kw{color:#7c3aed;font-weight:600}
+pre code .tok-str{color:#0e7a4e}
+pre code .tok-com{color:#9aa1af;font-style:italic}
+pre.mermaid-src{border-style:dashed;background:#fcfcff}
+pre.mermaid-src code{color:#5a5f8a}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:18px 0}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.7}
+th{background:#f4f5fa;font-weight:600;color:#333a45;text-align:left;font-size:12.8px;white-space:nowrap}
+th,td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#fafbff}
+td code,th code{font-size:.88em}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line)}
+img.img-missing{opacity:.55;border-style:dashed;padding:14px}
+figure{margin:22px 0}
+figcaption{color:#9aa0b5;font-size:12.5px;text-align:center;margin-top:8px}
+#totop{position:fixed;right:26px;bottom:26px;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--accent);font-size:18px;cursor:pointer;box-shadow:0 4px 14px rgba(30,35,90,.12);opacity:0;pointer-events:none;transition:.25s;z-index:20}
+#totop.show{opacity:1;pointer-events:auto}
+.foot{margin-top:70px;padding-top:18px;border-top:1px solid var(--line);color:#9aa0b5;font-size:12.5px;text-align:center}
+@media print{.sidebar,#side-toggle,#totop{display:none}.main{margin-left:0}.wrap{max-width:100%;padding:0}.tw,pre{overflow:visible}body{background:#fff}h2{break-after:avoid}tr,pre{break-inside:avoid}details.docmeta{display:block}details.docmeta[open] summary{display:none}}
+@media (max-width:1020px){.sidebar{position:static;width:auto;height:auto;border-right:0;border-bottom:1px solid var(--line);transform:none}#side-toggle{display:none}#toc{display:none}.main{margin-left:0;transition:none}.wrap{padding:34px 22px 60px}body.side-hidden .sidebar{transform:none}body.side-hidden .main{margin-left:0}}
+</style>
+</head>
+<body>
+<nav class="sidebar">
+  <div class="side-head">
+    <div class="row">
+      <span class="logo">文</span>
+      <span><b>示例：药品数据治理方案（演示文档）</b><small>样例输出 · 离线可读</small></span>
+    </div>
+  </div>
+  <nav id="toc" aria-label="目录"><div class="tgroup"><a class="l2 fl-1" href="#sec-0" data-target="sec-0"><span class="lbl">1. 需求简述</span></a></div><div class="tgroup"><a class="l2 fl-2" href="#sec-1" data-target="sec-1"><span class="lbl">2. 方案概要</span><span class="car" title="折叠 / 展开">▾</span></a><div class="tsub"><a class="l3 fl-2" href="#sec-2" data-target="sec-2"><span class="lbl">2.1 数据库变更</span></a><a class="l3 fl-2" href="#sec-3" data-target="sec-3"><span class="lbl">2.2 数据核对</span></a><a class="l3 fl-2" href="#sec-4" data-target="sec-4"><span class="lbl">2.3 配置示例</span></a><a class="l3 fl-2" href="#sec-5" data-target="sec-5"><span class="lbl">2.4 部署步骤</span></a></div></div><div class="tgroup"><a class="l2 fl-3" href="#sec-6" data-target="sec-6"><span class="lbl">3. 关键流程</span></a></div><div class="tgroup"><a class="l2 fl-4" href="#sec-7" data-target="sec-7"><span class="lbl">4. 流程示意截图</span></a></div><div class="tgroup"><a class="l2 fl-5" href="#sec-8" data-target="sec-8"><span class="lbl">5. 测试关注点</span></a></div></nav>
+  <div class="side-foot"><button id="texp" type="button">全部展开</button><button id="tcol" type="button">全部收起</button></div>
+</nav>
+<button id="side-toggle" title="收起侧栏" aria-label="收起 / 展开侧栏">‹</button>
+<main class="main"><div class="wrap"><article class="content">
+<div class="hero-meta"><span class="chip hot">doc-to-html</span><span class="chip">生成于 2026-09-30 09:25</span><span class="chip">来源 sample.md</span><span class="chip">约 2,216 字</span></div>
+<h1>示例：药品数据治理方案（演示文档）</h1>
+<blockquote>
+<p>文档版本：v3 ｜ 修订：2026-09-28（v2）、2026-09-29（v3） ｜ 仓库：<code>backend/mall/product-service</code>
+v2 ＝ v1 + 初始化脚本幂等化：唯一键去掉 <code>delete_flag</code>，「清空→重加→再清空」不再报 <code>Duplicate entry</code>，重配置由 upsert 复活旧行（修订决策 15/16、§4、§3.1）。
+v3 ＝ v2 + 留痕取值文案按属性名分派：新增 4 个字段此前打印原始值（<code>【禁用性别】修改前：null，修改后：2</code>），改为 <code>1男禁用</code>/<code>2女禁用</code>/<code>3男女均禁</code>、<code>是</code>/<code>否</code> 的可读文案；既有分支与既有字段不动。
+变更沿革：v1 原列归移动医疗端 → v2 端归属翻转 → v3 留痕文案分派。本文档约定：不引用代码行号，代码定位一律用符号名或文本锚点，行号随每次改动漂移，符号名可全文检索定位。</p>
+</blockquote>
+<h2 id="sec-0" class="fl-1"><span class="fl-badge">01</span>1. 需求简述</h2>
+<ul>
+<li>药品主数据新增「精神类药物」（二值：是 / 否）</li>
+<li>新增「禁用性别」独立功能（与既有 <del>specific_sex</del> 指定性别用药无耦合）</li>
+<li>原「禁用年龄」拆为「商城端禁用年龄」+「移动医疗端禁用年龄」</li>
+<li>需求来源：PMS 需求单（口头澄清，无 PRD），详见<a href="https://example.com/pms/story/123">项目管理平台</a></li>
+</ul>
+<h2 id="sec-1" class="fl-2"><span class="fl-badge">02</span>2. 方案概要</h2>
+<p>核心思路：字段落点全部由新表承接，<code>medical</code> 主表本期零新增列（避免继续加宽约 45~50 列的现有宽表）。</p>
+<table>
+<thead>
+<tr>
+<th>变更</th>
+<th>对象</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>新增表</td>
+<td><code>medical_special_drug</code></td>
+<td>药品法定分类，行 = 维度</td>
+</tr>
+<tr>
+<td>新增表</td>
+<td><code>medical_restriction</code></td>
+<td>药品级管控规则，<code>control_code</code> + <code>value_int</code></td>
+</tr>
+<tr>
+<td>新增表</td>
+<td><code>medical_channel_restriction</code></td>
+<td>按渠道年龄限制，行 = 药品 × 渠道</td>
+</tr>
+<tr>
+<td>无新增列</td>
+<td><code>medical</code> 主表</td>
+<td>既有列直接退役，读侧改读 <code>MALL</code> 行</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sec-2" class="fl-2">2.1 数据库变更</h3>
+<pre><code class="language-sql">CREATE TABLE medical_restriction (
+  id                 BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+  medical_id         INT          NOT NULL COMMENT '药品主数据ID',
+  control_code       VARCHAR(32)  NOT NULL COMMENT '管控维度：FORBIDDEN_SEX',
+  value_int          INT          NOT NULL COMMENT '取值：1男禁用/2女禁用/3男女均禁',
+  delete_flag        TINYINT      NOT NULL DEFAULT 0 COMMENT '删除标记',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_medical_restriction (medical_id, control_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='药品级管控规则';
+</code></pre>
+<h3 id="sec-3" class="fl-2">2.2 数据核对</h3>
+<p>上线前须执行影响面查询并导出明细：</p>
+<pre><code class="language-sql">-- 6.1 会被 MALL 行覆盖「反转」的药品
+SELECT COUNT(*) AS reversed_only_greater
+FROM medical m
+WHERE m.sell_online_flag = 1
+  AND m.forbidden_age_less IS NULL
+  AND m.forbidden_age_greater IS NOT NULL;
+</code></pre>
+<h3 id="sec-4" class="fl-2">2.3 配置示例</h3>
+<p>写侧取值域校验配置（节选）：</p>
+<pre><code class="language-json">{
+  &quot;control_code&quot;: &quot;FORBIDDEN_SEX&quot;,
+  &quot;allowedValues&quot;: [1, 2, 3],
+  &quot;filterable&quot;: false,
+  &quot;description&quot;: &quot;禁用性别，不分端&quot;
+}
+</code></pre>
+<h3 id="sec-5" class="fl-2">2.4 部署步骤</h3>
+<pre><code class="language-bash"># 1. 执行 DDL
+mysql -h prod -u dba mall_product &lt; sql/20260920_init_ddl.sql
+# 2. 灌入初始化数据（幂等，可重复执行）
+mysql -h prod -u dba mall_product &lt; sql/20260920_init_data.sql
+# 3. 核对结果
+mysql -h prod -u dba mall_product &lt; sql/20260920_check.sql
+</code></pre>
+<h2 id="sec-6" class="fl-3"><span class="fl-badge">03</span>3. 关键流程</h2>
+<pre class="mermaid-src"><code class="language-mermaid">sequenceDiagram
+    participant OMS as oms
+    participant PS as product-service
+    OMS-&gt;&gt;PS: POST /v3/product/medical 扁平字段
+    PS-&gt;&gt;PS: 事务写三张新表
+    PS--&gt;&gt;OMS: 保存结果
+</code></pre>
+<h2 id="sec-7" class="fl-4"><span class="fl-badge">04</span>4. 流程示意截图</h2>
+<p><img alt="审批流程截图" src="demo.png" /></p>
+<p>（上图文字转写如下）</p>
+<ol>
+<li>运营提交药品属性变更</li>
+<li>质管复核精神类药物标记</li>
+<li>系统写留痕并同步渠道表</li>
+</ol>
+<h2 id="sec-8" class="fl-5"><span class="fl-badge">05</span>5. 测试关注点</h2>
+<ol>
+<li><strong>翻译正确性</strong>：扁平入参 ↔ 三张表双向一致；越界值（<code>0</code>/<code>4</code>）须被拒绝</li>
+<li><strong>整行回写回归</strong>：编辑疾病词后，关联药品在新表的行内容与 <code>last_modified_date</code> 均不得变化</li>
+<li><strong>异常边界</strong>：只填「大于」不填「小于」；年龄 0/100/非数字；未提交字段（<code>null</code>）不得被清空</li>
+</ol>
+<blockquote>
+<p>回滚前提：DDL 尚未在任何环境执行。回滚 = 前后端回版本，数据回滚 = 清空三张新表。</p>
+</blockquote>
+<div class="foot">由 doc-to-html · md2html.py 生成 · 2026-09-30</div>
+</article></div></main>
+<button id="totop" title="回到顶部">↑</button>
+<script>
+(function(){
+ var heads=[].slice.call(document.querySelectorAll('.content h2,.content h3'));
+ var links=[].slice.call(document.querySelectorAll('#toc a'));
+ var totop=document.getElementById('totop');
+ var toc=document.getElementById('toc');
+ var sideToggle=document.getElementById('side-toggle');
+ var groups=[].slice.call(document.querySelectorAll('#toc .tgroup'));
+ function setSide(hidden){
+  document.body.classList.toggle('side-hidden',hidden);
+  if(sideToggle){var h=document.body.classList.contains('side-hidden');
+   sideToggle.textContent=h?'›':'‹';
+   sideToggle.title=h?'展开侧栏':'收起侧栏';}}
+ if(sideToggle)sideToggle.addEventListener('click',function(){
+  setSide(!document.body.classList.contains('side-hidden'));});
+ groups.forEach(function(g){
+  var car=g.querySelector('.car');if(!car)return;
+  car.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();g.classList.toggle('closed');});});
+ var bE=document.getElementById('texp'),bC=document.getElementById('tcol');
+ if(bE)bE.addEventListener('click',function(){groups.forEach(function(g){g.classList.remove('closed');});});
+ if(bC)bC.addEventListener('click',function(){groups.forEach(function(g){g.classList.add('closed');});});
+ function spy(){var y=window.scrollY+150,cur=links.length?0:-1,act=null;
+  heads.forEach(function(h,i){if(h.offsetTop<=y)cur=i;});
+  links.forEach(function(a){
+   var on=!!(heads[cur]&&a.getAttribute('data-target')===heads[cur].id);
+   a.classList.toggle('active',on);if(on)act=a;});
+  totop.classList.toggle('show',window.scrollY>600);
+  if(act&&toc){var g=act.closest?act.closest('.tgroup'):null;
+   if(g)g.classList.remove('closed');
+   var tb=toc.getBoundingClientRect(),ab=act.getBoundingClientRect(),rel=ab.top-tb.top;
+   if(rel<0||rel>tb.height-46)toc.scrollTop+=rel-tb.height/2+20;}}
+ addEventListener('scroll',spy,{passive:true});spy();
+ document.querySelectorAll('.content table').forEach(function(t){
+  var w=document.createElement('div');w.className='tw';
+  t.parentNode.insertBefore(w,t);w.appendChild(t);});
+ var LANG_COMMENTS={sql:'--',python:'#',bash:'#',sh:'#',yaml:'#',yml:'#',toml:'#',
+  js:'//',javascript:'//',ts:'//',typescript:'//',java:'//',c:'//',cpp:'//',go:'//',rust:'//',json:null,mermaid:null};
+ var LANG_KW={
+  sql:'CREATE|TABLE|PRIMARY|KEY|UNIQUE|NOT|NULL|DEFAULT|CURRENT_TIMESTAMP|ENGINE|CHARSET|COMMENT|AUTO_INCREMENT|BIGINT|INT|TINYINT|VARCHAR|DATETIME|TIMESTAMP|SELECT|FROM|WHERE|LEFT|RIGHT|INNER|OUTER|JOIN|AND|OR|IS|GROUP|BY|ORDER|INSERT|INTO|VALUES|SET|EXISTS|CASE|WHEN|THEN|ELSE|END|AS|COUNT|SUM|MAX|MIN|DELETE|UPDATE|IFNULL|DISTINCT|LIMIT|ON|IN|DESC|ASC|LIKE|BETWEEN|HAVING|ALTER|DROP|REPLACE|VIEW|INDEX',
+  python:'def|class|return|if|elif|else|for|while|import|from|as|with|try|except|finally|raise|lambda|None|True|False|and|or|not|in|is|pass|break|continue|global|yield|async|await',
+  bash:'if|then|else|fi|for|while|do|done|case|esac|function|echo|export|local|return|cd|ls|grep|awk|sed|curl|set|source|sudo|npm|pip|git',
+  js:'function|return|if|else|for|while|var|let|const|class|extends|new|this|typeof|instanceof|null|undefined|true|false|try|catch|finally|throw|switch|case|break|continue|import|export|from|default|async|await|yield',
+  java:'public|private|protected|static|final|void|int|long|boolean|String|class|interface|extends|implements|new|return|if|else|for|while|try|catch|finally|throw|throws|this|super|null|true|false|import|package'};
+ LANG_KW.ts=LANG_KW.js;LANG_KW.typescript=LANG_KW.js;LANG_KW.javascript=LANG_KW.js;
+ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+ document.querySelectorAll('pre code').forEach(function(el){
+  var cls=el.className||'';var m=cls.match(/language-([a-zA-Z0-9_+-]+)/);
+  var lang=m?m[1].toLowerCase():'';
+  if(lang==='mermaid')return;
+  var t=el.textContent,out='',last=0,mm;
+  var parts=[];
+  var com=LANG_COMMENTS[lang];
+  if(com==='--')parts.push('(-{2,}[^\\n]*)');
+  else if(com==='#')parts.push('(#[^\\n]*)');
+  else if(com==='//')parts.push('(//[^\\n]*)','(/\\*[\\s\\S]*?\\*/)');
+  else if(com===null&&lang==='json')parts.push('("(?:[^"\\\\]|\\\\.)*")(\\s*:)?');
+  var str="('(?:[^'\\\\\\n]|\\\\.)*'|\"(?:[^\"\\\\\\n]|\\\\.)*\"|`(?:[^`\\\\]|\\\\.)*`)";
+  parts.push(str);
+  var kws=LANG_KW[lang];
+  if(kws)parts.push('\\b('+kws+')\\b');
+  if(!parts.length)return;
+  var re=new RegExp(parts.join('|'),'g');
+  while((mm=re.exec(t))){
+   out+=esc(t.slice(last,mm.index));
+   var seg=esc(mm[0]);
+   if(mm[1]||mm[2]&&lang==='json')out+='<span class="tok-com">'+seg+'</span>';
+   else if(mm[0][0]==="'"||mm[0][0]==='"'||mm[0][0]==='`')out+='<span class="tok-str">'+seg+'</span>';
+   else out+='<span class="tok-kw">'+seg+'</span>';
+   last=mm.index+mm[0].length;}
+  out+=esc(t.slice(last));el.innerHTML=out;});
+ totop.addEventListener('click',function(){scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>

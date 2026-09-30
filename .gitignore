@@ -1,0 +1,9 @@
+# IDE
+.idea/
+.vscode/
+
+# 运行时自动生成的 Python 依赖（install.sh / 首次转换会自举）
+scripts/_vendor/
+
+# 系统文件
+.DS_Store
