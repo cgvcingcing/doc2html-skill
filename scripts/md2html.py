@@ -6,7 +6,7 @@
   - 侧栏目录（h2/h3，滚动高亮；h2 分组可折叠、整栏可收起）+ 回到顶部 + 打印样式
   - 分节楼层配色：各 h2 章节循环套用 8 色楼层色，标题带楼层号徽标，侧栏目录联动标色
   - 表格自动加横向滚动圆角容器；SQL/JSON/JS/Python/Bash 轻量语法高亮
-  - 本地图片默认 base64 内嵌（--link-images 可关闭），外链图片原样保留
+  - 本地图片默认 base64 内嵌（--link-images 可关闭），外链图片原样保留；大图支持独立预览、缩放与拖动
   - 文档头部的长元信息/修订记录 blockquote 自动折叠
   - Mermaid 代码块以源码形式保留（离线可用），如需图形化请由 agent 手绘 HTML/CSS 替换
   - 依赖（markdown / pymdown-extensions）首次运行自动装载到 scripts/_vendor，不污染系统环境
@@ -24,6 +24,8 @@ import argparse
 import base64
 import datetime
 import html
+from html.parser import HTMLParser
+import os
 import pathlib
 import re
 import shutil
@@ -33,7 +35,7 @@ import sys
 SKILL_DIR = pathlib.Path(__file__).resolve().parent.parent
 VENDOR_DIR = pathlib.Path(__file__).resolve().parent / "_vendor"
 MERMAID_RE = re.compile(r'<pre><code class="language-mermaid">.*?</code></pre>', re.S)
-IMG_RE = re.compile(r'<img src="([^"]+)"([^>]*)/?>')
+IMG_RE = re.compile(r'''<img\b(?:"[^"]*"|'[^']*'|[^'"<>])*>''', re.I)
 HEADING_RE = re.compile(r"<h([23])>(.*?)</h[23]>", re.S)
 FLOOR_COLORS = 8  # 楼层配色循环周期，与 CSS 中 --f1..--f8 一一对应
 
@@ -172,21 +174,37 @@ def build_toc(entries: list[tuple[int, str, str, int]]) -> tuple[str, str]:
 
 def embed_images(body: str, base_dir: pathlib.Path, embed: bool) -> str:
     """本地图片转 base64 data URI；外链保留；缺失图片打上 missing 标记。"""
+    class ImageAttributes(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            self.attrs = dict(attrs)
+
     def repl(m: re.Match) -> str:
-        src, tail = m.group(1), m.group(2)
+        parser = ImageAttributes()
+        parser.feed(m.group(0))
+        attrs = parser.attrs
+        src = attrs.get("src")
+        if not src:
+            return m.group(0)
         if src.startswith(("http://", "https://", "data:")) or not embed:
             return m.group(0)
         p = (base_dir / src) if not pathlib.Path(src).is_absolute() else pathlib.Path(src)
         p = p.resolve()
         if not p.is_file():
-            return f'<img src="{src}" class="img-missing" alt="[图片缺失: {src}]"' + tail + ">"
-        mime = "image/svg+xml" if p.suffix.lower() == ".svg" else (
-            "image/png" if p.suffix.lower() == ".png" else
-            "image/gif" if p.suffix.lower() == ".gif" else
-            "image/webp" if p.suffix.lower() == ".webp" else "image/jpeg")
-        data = base64.b64encode(p.read_bytes()).decode("ascii")
-        extra = "" if "alt=" in tail else ' alt=""'
-        return f'<img src="data:{mime};base64,{data}" loading="lazy" decoding="async"{extra}' + tail + ">"
+            attrs["class"] = ((attrs.get("class") or "") + " img-missing").strip()
+            attrs.setdefault("alt", f"[图片缺失: {src}]")
+            attrs.setdefault("title", f"图片缺失: {src}")
+        else:
+            mime = "image/svg+xml" if p.suffix.lower() == ".svg" else (
+                "image/png" if p.suffix.lower() == ".png" else
+                "image/gif" if p.suffix.lower() == ".gif" else
+                "image/webp" if p.suffix.lower() == ".webp" else "image/jpeg")
+            attrs["src"] = "data:" + mime + ";base64," + base64.b64encode(p.read_bytes()).decode("ascii")
+            attrs.setdefault("alt", "")
+            attrs.setdefault("loading", "lazy")
+            attrs.setdefault("decoding", "async")
+        rendered = " ".join(key if value is None else f'{key}="{html.escape(value, quote=True)}"'
+                            for key, value in attrs.items())
+        return "<img " + rendered + ">"
     return IMG_RE.sub(repl, body)
 
 
@@ -295,6 +313,34 @@ figcaption{color:#9aa0b5;font-size:12.5px;text-align:center;margin-top:8px}
 @media (max-width:1020px){.sidebar{position:static;width:auto;height:auto;border-right:0;border-bottom:1px solid var(--line);transform:none}#side-toggle{display:none}#toc{display:none}.main{margin-left:0;transition:none}.wrap{padding:34px 22px 60px}body.side-hidden .sidebar{transform:none}body.side-hidden .main{margin-left:0}}
 """
 
+CSS += """
+.source-panel{padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.content .source-panel.viewer-ready .source-viewport{max-height:none;overflow:visible;border:0}
+.image-preview{display:block;position:relative;max-width:100%;border-radius:10px;background:#fff}
+.content .image-preview img{display:block;max-width:100%;max-height:70vh;width:auto;height:auto;object-fit:contain;margin:0 auto;cursor:zoom-in}
+.image-open{display:block;margin:10px 0 0 auto;border:1px solid var(--line);border-radius:8px;padding:6px 12px;background:#fff;color:var(--accent);font:inherit;font-size:13px;cursor:pointer}
+.image-open:hover{background:var(--soft)}
+.image-open:focus-visible,.image-viewer button:focus-visible{outline:3px solid #a5b4fc;outline-offset:3px}
+body.image-preview-open{overflow:hidden}
+.image-viewer{position:fixed;inset:0;width:100%;max-width:none;height:100vh;height:100dvh;max-height:none;margin:0;padding:16px;border:0;background:#111827;color:#f8fafc;gap:12px}
+.image-viewer[open]{display:flex;flex-direction:column}
+.image-viewer::backdrop{background:#111827}
+.iv-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.iv-title{min-width:0;flex:1;font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.iv-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.image-viewer button{border:1px solid #475569;border-radius:8px;padding:7px 12px;background:#1e293b;color:#f8fafc;font:inherit;font-size:13px;line-height:1.5;cursor:pointer}
+.image-viewer button:hover{background:#334155}
+.iv-scale{min-width:48px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums}
+.iv-stage{position:relative;flex:1;min-height:0;overflow:hidden;border-radius:12px;background:#edf0f5;touch-action:none;cursor:grab;user-select:none}
+.iv-stage.dragging{cursor:grabbing}
+.image-viewer .iv-image{position:absolute;top:50%;left:50%;max-width:none;max-height:none;margin:0;border:0;border-radius:0;pointer-events:none;user-select:none}
+.iv-loading{position:absolute;inset:0;display:grid;place-items:center;color:#64748b}
+.iv-loading[hidden]{display:none}
+.iv-help{margin:0;text-align:center;color:#cbd5e1;font-size:12px;line-height:1.5}
+@media(max-width:600px){.image-viewer{padding:10px;gap:10px}.iv-toolbar{gap:8px}.iv-title{flex-basis:100%;font-size:14px}.iv-controls{width:100%;gap:6px}.image-viewer button{padding:7px 9px}.iv-controls .iv-close{margin-left:auto}}
+@media print{.image-viewer,.image-open{display:none!important}body.image-preview-open{overflow:visible}.content .image-preview img{max-height:none;cursor:auto}.source-panel{border:0;padding:0}}
+"""
+
 JS = r"""
 (function(){
  var heads=[].slice.call(document.querySelectorAll('.content h2,.content h3'));
@@ -369,6 +415,128 @@ JS = r"""
 })();
 """
 
+JS += r"""
+(function(){
+ var sources=[].slice.call(document.querySelectorAll('.content img')).filter(function(img){
+  return !img.classList.contains('img-missing')&&!img.closest('a,button,[data-no-preview]');
+ });
+ if(!sources.length)return;
+ var viewer=document.createElement('dialog');
+ if(typeof viewer.showModal!=='function')return;
+ viewer.className='image-viewer';
+ viewer.setAttribute('aria-labelledby','iv-title');
+ viewer.innerHTML='<div class="iv-toolbar"><div class="iv-title" id="iv-title"></div><div class="iv-controls">'+
+  '<button type="button" data-action="out" aria-label="缩小">−</button><output class="iv-scale" aria-label="缩放比例"></output>'+
+  '<button type="button" data-action="in" aria-label="放大">＋</button><button type="button" data-action="fit">适应屏幕</button>'+
+  '<button type="button" data-action="original">原尺寸</button><button type="button" class="iv-close" data-action="close" autofocus>关闭 ×</button>'+
+  '</div></div><div class="iv-stage" aria-label="图片预览，可缩放和拖动"><img class="iv-image" alt="" draggable="false">'+
+  '<span class="iv-loading">正在加载图片…</span></div><p class="iv-help">滚轮 / 捏合缩放 · 拖动移动 · Esc 关闭</p>';
+ document.body.appendChild(viewer);
+ var stage=viewer.querySelector('.iv-stage'),image=viewer.querySelector('.iv-image');
+ var title=viewer.querySelector('.iv-title'),scaleLabel=viewer.querySelector('.iv-scale');
+ var loading=viewer.querySelector('.iv-loading'),closeButton=viewer.querySelector('.iv-close');
+ var scale=1,panX=0,panY=0,mode='fit',origin=null,pointers=new Map();
+ function fitScale(){return Math.min(1,Math.max(1,stage.clientWidth-32)/image.naturalWidth,Math.max(1,stage.clientHeight-32)/image.naturalHeight);}
+ function render(){
+  if(!image.naturalWidth)return;
+  var w=image.naturalWidth*scale,h=image.naturalHeight*scale;
+  var limitX=Math.max(0,(w-stage.clientWidth)/2+16),limitY=Math.max(0,(h-stage.clientHeight)/2+16);
+  panX=Math.max(-limitX,Math.min(limitX,panX));panY=Math.max(-limitY,Math.min(limitY,panY));
+  image.style.width=w+'px';image.style.height=h+'px';
+  image.style.transform='translate(-50%,-50%) translate('+panX+'px,'+panY+'px)';
+  scaleLabel.textContent=Math.round(scale*100)+'%';
+ }
+ function fit(){if(!image.naturalWidth)return;mode='fit';scale=fitScale();panX=panY=0;render();}
+ function zoom(next,x,y){
+  if(!image.naturalWidth)return;
+  next=Math.max(Math.min(fitScale(),.1),Math.min(4,next));
+  var r=stage.getBoundingClientRect();
+  var pointX=x===undefined?0:x-r.left-r.width/2,pointY=y===undefined?0:y-r.top-r.height/2;
+  var ratio=next/scale;
+  panX=pointX-(pointX-panX)*ratio;panY=pointY-(pointY-panY)*ratio;
+  scale=next;mode='zoom';render();
+ }
+ function open(source,button){
+  origin=button;mode='fit';panX=panY=0;pointers.clear();loading.hidden=false;
+  loading.textContent='正在加载图片…';image.style.visibility='hidden';
+  title.textContent=source.alt||'图片预览';image.alt=source.alt;
+  document.body.classList.add('image-preview-open');viewer.showModal();closeButton.focus();
+  image.src=source.currentSrc||source.src;
+  if(image.complete&&image.naturalWidth)ready();
+ }
+ function ready(){if(!viewer.open)return;loading.hidden=true;image.style.visibility='visible';fit();}
+ image.addEventListener('load',ready);
+ image.addEventListener('error',function(){loading.textContent='图片加载失败，请关闭后重试';});
+ viewer.addEventListener('close',function(){
+  document.body.classList.remove('image-preview-open');pointers.clear();stage.classList.remove('dragging');
+  if(origin)origin.focus({preventScroll:true});
+ });
+ viewer.addEventListener('click',function(e){
+  if(e.target===viewer){viewer.close();return;}
+  var button=e.target.closest('button[data-action]');if(!button)return;
+  var action=button.getAttribute('data-action');
+  if(action==='close')viewer.close();
+  else if(action==='fit')fit();
+  else if(action==='original'){scale=1;panX=panY=0;mode='zoom';render();}
+  else zoom(scale*(action==='in'?1.25:.8));
+ });
+ stage.addEventListener('wheel',function(e){
+  e.preventDefault();var delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?stage.clientHeight:1);
+  zoom(scale*Math.exp(-delta*.002),e.clientX,e.clientY);
+ },{passive:false});
+ stage.addEventListener('pointerdown',function(e){
+  if(e.button!==0||!image.naturalWidth)return;
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});stage.setPointerCapture(e.pointerId);
+  stage.classList.add('dragging');e.preventDefault();
+ });
+ stage.addEventListener('pointermove',function(e){
+  if(!pointers.has(e.pointerId))return;
+  var before=Array.from(pointers.values());
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});var after=Array.from(pointers.values());
+  if(after.length===1){panX+=after[0].x-before[0].x;panY+=after[0].y-before[0].y;mode='zoom';}
+  else{
+   var oldX=(before[0].x+before[1].x)/2,oldY=(before[0].y+before[1].y)/2;
+   var newX=(after[0].x+after[1].x)/2,newY=(after[0].y+after[1].y)/2;
+   var oldDistance=Math.hypot(before[0].x-before[1].x,before[0].y-before[1].y);
+   var distance=Math.hypot(after[0].x-after[1].x,after[0].y-after[1].y);
+   if(oldDistance)zoom(scale*distance/oldDistance,oldX,oldY);
+   panX+=newX-oldX;panY+=newY-oldY;
+  }
+  render();
+ });
+ function endPointer(e){pointers.delete(e.pointerId);if(!pointers.size)stage.classList.remove('dragging');}
+ stage.addEventListener('pointerup',endPointer);stage.addEventListener('pointercancel',endPointer);
+ stage.addEventListener('lostpointercapture',endPointer);
+ stage.addEventListener('dblclick',function(e){if(scale>fitScale()*1.05)fit();else zoom(1,e.clientX,e.clientY);});
+ viewer.addEventListener('keydown',function(e){
+  if(e.key==='Tab'){
+   var buttons=viewer.querySelectorAll('button'),first=buttons[0],last=buttons[buttons.length-1];
+   if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+   else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+  }
+  else if(e.key==='+'||e.key==='='){e.preventDefault();zoom(scale*1.25);}
+  else if(e.key==='-'){e.preventDefault();zoom(scale*.8);}
+  else if(/^Arrow(Left|Right|Up|Down)$/.test(e.key)){
+   e.preventDefault();mode='zoom';
+   if(e.key==='ArrowLeft')panX+=80;else if(e.key==='ArrowRight')panX-=80;
+   else if(e.key==='ArrowUp')panY+=80;else panY-=80;render();
+  }
+ });
+ addEventListener('resize',function(){if(viewer.open){if(mode==='fit')fit();else render();}});
+ sources.forEach(function(source){
+  var panel=source.closest('.source-panel');
+  if(panel){panel.classList.add('viewer-ready');panel.querySelectorAll('.source-controls').forEach(function(control){control.remove();});}
+  var wrap=document.createElement('span');wrap.className='image-preview';
+  source.parentNode.insertBefore(wrap,source);wrap.appendChild(source);
+  var button=document.createElement('button');button.type='button';button.className='image-open';
+  button.textContent='查看大图';button.setAttribute('aria-haspopup','dialog');
+  button.setAttribute('aria-label','查看大图：'+(source.alt||'图片'));wrap.appendChild(button);
+  button.addEventListener('click',function(){open(source,button);});
+  source.addEventListener('click',function(){open(source,button);});
+ });
+})();
+"""
+
 HTML_SHELL = """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -402,17 +570,52 @@ __BODY__
 
 
 def cleanup_paths(paths: list[str], protected: set[pathlib.Path]) -> tuple[list[str], list[tuple[str, str]]]:
-    """删除中间产物（文件或目录，目录整删）；不存在或 HTML 产物一律跳过，绝不误删最终产物。"""
+    """删除中间产物；HTML、包含 HTML 或受保护输出的目录一律跳过。"""
+    protected_paths = {p.resolve() for p in protected} | {
+        pathlib.Path(os.path.abspath(p)) for p in protected
+    }
+
+    def raise_scan_error(error: OSError) -> None:
+        raise error
+
     removed, skipped = [], []
     for raw in paths:
         p = pathlib.Path(raw).expanduser()
         if not p.exists():
             skipped.append((str(p), "不存在"))
             continue
-        if p.suffix.lower() in {".html", ".htm"} or p.resolve() in protected:
+        resolved = p.resolve()
+        absolute = pathlib.Path(os.path.abspath(p))
+        if (
+            p.suffix.lower() in {".html", ".htm"}
+            or resolved in protected_paths
+            or absolute in protected_paths
+        ):
             skipped.append((str(p), "HTML 产物受保护"))
             continue
         if p.is_dir():
+            if any(
+                parent in target.parents
+                for target in protected_paths
+                for parent in (absolute, resolved)
+            ):
+                skipped.append((str(p), "目录包含受保护的输出文件，未清理"))
+                continue
+            if p.is_symlink():
+                skipped.append((str(p), "符号链接目录，未清理"))
+                continue
+            try:
+                contains_html = any(
+                    pathlib.Path(name).suffix.lower() in {".html", ".htm"}
+                    for _, _, filenames in os.walk(p, onerror=raise_scan_error)
+                    for name in filenames
+                )
+            except OSError as error:
+                skipped.append((str(p), f"目录检查失败，未清理：{error}"))
+                continue
+            if contains_html:
+                skipped.append((str(p), "目录包含 HTML 产物，未清理"))
+                continue
             shutil.rmtree(p)
         else:
             p.unlink()
@@ -476,13 +679,13 @@ def main() -> None:
     ap.add_argument("--assets-base", help="相对图片路径的基准目录（默认第一个输入文件所在目录）")
     ap.add_argument("--link-images", action="store_true", help="不内嵌图片，保留相对链接")
     ap.add_argument("--cleanup", nargs="+", metavar="PATH",
-                    help="删除指定的中间产物（文件或目录，空格分隔）；可附在转换命令末尾，或单独执行只做清理")
+                    help="删除指定的中间产物（文件或目录，空格分隔），跳过 HTML 及包含 HTML 的目录；可附在转换命令末尾，或单独执行只做清理")
     args = ap.parse_args()
     if not args.inputs and not args.cleanup:
         ap.error("至少提供输入文件，或用 --cleanup 指定要清理的中间产物")
     out = convert(args.inputs, args) if args.inputs else None
     if args.cleanup:
-        protected = {out.resolve()} if out else set()
+        protected = {out.absolute(), out.resolve()} if out else set()
         removed, skipped = cleanup_paths(args.cleanup, protected)
         for p in removed:
             print(f"[doc-to-html] 已删除中间产物: {p}")
